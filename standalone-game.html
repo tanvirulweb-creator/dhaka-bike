@@ -6,8 +6,7 @@
   <title>ঢাকা বাইক রাশ ৩ডি | Dhaka Bike Rush 3D</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=Teko:wght@600;700&display=swap" rel="stylesheet">
-  <!-- Fast CDNs for Three.js, React, ReactDOM, Babel -->
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -24,7 +23,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // --- 1. Sound Synthesizer (Web Audio API) ---
+    // --- 1. Sound Synthesizer ---
     class SoundManager {
       constructor() {
         this.ctx = null;
@@ -69,10 +68,10 @@
       updateEngine(ratio) {
         if (!this.ctx || !this.isEngineRunning || !this.engineOsc) return;
         try {
-          const f = 60 + ratio * 110;
+          const f = 60 + ratio * 105;
           this.engineOsc.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.05);
           if (!this.isMuted && this.engineGain) {
-            this.engineGain.gain.setTargetAtTime(0.06 + ratio * 0.06, this.ctx.currentTime, 0.05);
+            this.engineGain.gain.setTargetAtTime(0.06 + ratio * 0.05, this.ctx.currentTime, 0.05);
           }
         } catch(e) {}
       }
@@ -200,146 +199,95 @@
     }
     const sounds = new SoundManager();
 
-    // --- 2. 3D Model Helpers ---
-    const createMat = (color, r = 0.4, m = 0.1) =>
+    // --- 2. Upgraded 3D Models ---
+    const createMat = (color, r = 0.35, m = 0.15) =>
       new THREE.MeshStandardMaterial({ color, roughness: r, metalness: m, flatShading: true });
 
     function createPlayerBike() {
       const group = new THREE.Group();
       const bike = new THREE.Group();
 
-      const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.22, 12);
+      const tireGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.22, 16);
       const tireMat = createMat(0x1a1a1a, 0.9, 0.1);
-      const rimMat = createMat(0xcccccc, 0.2, 0.8);
+      const rimMat = createMat(0xdcdde1, 0.2, 0.85);
 
       const makeWheel = (z) => {
         const w = new THREE.Group();
-        const t = new THREE.Mesh(wheelGeo, tireMat); t.rotation.z = Math.PI / 2;
-        const r = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.24, 8), rimMat); r.rotation.z = Math.PI / 2;
+        const t = new THREE.Mesh(tireGeo, tireMat); t.rotation.z = Math.PI / 2;
+        const r = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.23, 10), rimMat); r.rotation.z = Math.PI / 2;
         w.add(t, r); w.position.set(0, 0.38, z); return w;
       };
-      bike.add(makeWheel(-0.9), makeWheel(0.8));
+      bike.add(makeWheel(-0.95), makeWheel(0.85));
 
-      const bodyMat = createMat(0xe74c3c);
-      const darkMat = createMat(0x2c3e50);
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.45, 1.2), bodyMat);
-      frame.position.set(0, 0.65, 0);
-      const tank = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.3, 0.6), bodyMat);
-      tank.position.set(0, 0.88, -0.2);
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.7), darkMat);
-      seat.position.set(0, 0.82, 0.35);
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.08), darkMat);
-      bar.position.set(0, 1.05, -0.65);
-      const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.1), new THREE.MeshBasicMaterial({ color: 0xfff275 }));
-      hl.position.set(0, 0.82, -1.02);
-      bike.add(frame, tank, seat, bar, hl);
+      const bodyMat = createMat(0x0984e3, 0.2, 0.3);
+      const darkMat = createMat(0x1e272e, 0.5, 0.2);
+
+      const engine = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.42, 0.9), darkMat); engine.position.set(0, 0.6, -0.05);
+      const frontCowl = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.7), bodyMat); frontCowl.position.set(0, 0.82, -0.75); frontCowl.rotation.x = -0.35;
+      const ws = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.05), new THREE.MeshStandardMaterial({ color: 0x111, transparent: true, opacity: 0.8 })); ws.position.set(0, 1.1, -0.85); ws.rotation.x = -0.55;
+      const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.06), new THREE.MeshBasicMaterial({ color: 0x00f0ff })); hlL.position.set(-0.16, 0.78, -1.1);
+      const hlR = hlL.clone(); hlR.position.x = 0.16;
+      const tank = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.35, 0.65), bodyMat); tank.position.set(0, 0.95, -0.22);
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.7), darkMat); seat.position.set(0, 0.9, 0.35);
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.45), bodyMat); tail.position.set(0, 0.92, 0.85); tail.rotation.x = 0.2;
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.05), new THREE.MeshBasicMaterial({ color: 0xff0033 })); tl.position.set(0, 0.92, 1.08);
+
+      bike.add(engine, frontCowl, ws, hlL, hlR, tank, seat, tail, tl);
 
       // Rider
       const rider = new THREE.Group();
-      const skinMat = createMat(0xe0ac69);
-      const jacketMat = createMat(0x1e3799);
-      const helmetMat = createMat(0xfbc531);
-
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.28), jacketMat);
-      torso.position.set(0, 1.25, 0.1); torso.rotation.x = 0.25;
-      const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), helmetMat);
-      helmet.position.set(0, 1.7, -0.05);
-      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.16, 0.1), createMat(0x111111, 0.1, 0.9));
-      visor.position.set(0, 1.7, -0.25);
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.3), darkMat); torso.position.set(0, 1.28, 0.05); torso.rotation.x = 0.42;
+      const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), bodyMat); helmet.position.set(0, 1.72, -0.15);
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.12), new THREE.MeshStandardMaterial({ color: 0x00cec9, roughness: 0.1, metalness: 0.9 })); visor.position.set(0, 1.72, -0.38);
       rider.add(torso, helmet, visor);
 
       group.add(bike, rider);
+      group.userData = { tailLight: tl };
+      return group;
+    }
+
+    function createDhakaBuilding(type = 0) {
+      const group = new THREE.Group();
+      const colors = [0xf5cd79, 0xf8a5c2, 0x78e08f, 0x6a89cc, 0xe55039];
+      const bMat = createMat(colors[type % colors.length], 0.85);
+      const h = 16 + (type % 4) * 6;
+      const bldg = new THREE.Mesh(new THREE.BoxGeometry(10, h, 12), bMat);
+      bldg.position.set(0, h / 2, 0);
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.0, 12), createMat(0x0097e6));
+      tank.position.set(-2, h + 1.5, 1.5);
+      group.add(bldg, tank);
       return group;
     }
 
     function createCNG() {
       const group = new THREE.Group();
-      const greenMat = createMat(0x1b873a);
-      const yellowRoofMat = createMat(0xf1c40f);
-      const blackMat = createMat(0x222222);
-
-      const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 2.5), greenMat);
-      chassis.position.set(0, 0.4, 0);
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.7), greenMat);
-      cabin.position.set(0, 1.1, 0.35);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.18, 2.3), yellowRoofMat);
-      roof.position.set(0, 1.75, 0.05);
-      const frontNose = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.9), greenMat);
-      frontNose.position.set(0, 0.85, -0.9);
-      const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.55, 0.08), new THREE.MeshStandardMaterial({ color: 0x81ecec, transparent: true, opacity: 0.65 }));
-      windshield.position.set(0, 1.35, -0.65); windshield.rotation.x = 0.25;
-      group.add(chassis, cabin, roof, frontNose, windshield);
-
-      // Wheels
-      const wGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.22, 10);
-      const fw = new THREE.Mesh(wGeo, blackMat); fw.rotation.z = Math.PI / 2; fw.position.set(0, 0.3, -1.05);
-      const rwL = new THREE.Mesh(wGeo, blackMat); rwL.rotation.z = Math.PI / 2; rwL.position.set(-0.75, 0.3, 0.7);
-      const rwR = rwL.clone(); rwR.position.x = 0.75;
-      group.add(fw, rwL, rwR);
-
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 2.5), createMat(0x1b873a)); chassis.position.set(0, 0.4, 0);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 1.7), createMat(0x1b873a)); cabin.position.set(0, 1.1, 0.35);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.18, 2.3), createMat(0xf1c40f)); roof.position.set(0, 1.75, 0.05);
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.9), createMat(0x1b873a)); nose.position.set(0, 0.85, -0.9);
+      const ws = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.55, 0.08), new THREE.MeshStandardMaterial({ color: 0x81ecec, transparent: true, opacity: 0.65 })); ws.position.set(0, 1.35, -0.65); ws.rotation.x = 0.25;
+      group.add(chassis, cabin, roof, nose, ws);
       group.userData = { type: 'cng', length: 2.6, width: 1.6 };
       return group;
     }
 
-    function createBus(themeIndex = 0) {
+    function createBus(type = 0) {
       const group = new THREE.Group();
-      const colors = [
-        { b: 0xc0392b, s: 0xf1c40f, n: 'রাইদা পরিবহন' },
-        { b: 0x2980b9, s: 0xffffff, n: 'অনাবিল স্পেশাল' },
-        { b: 0x27ae60, s: 0xe67e22, n: 'তুরাগ এক্সপ্রেস' }
-      ];
-      const t = colors[themeIndex % colors.length];
-      const bodyMat = createMat(t.b);
-      const stripeMat = createMat(t.s);
-      const windowMat = new THREE.MeshStandardMaterial({ color: 0x34495e, roughness: 0.2 });
-
-      const busBody = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.2, 6.8), bodyMat);
-      busBody.position.set(0, 1.5, 0);
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.35, 6.75), stripeMat);
-      stripe.position.set(0, 1.3, 0);
-      const ws = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 0.1), windowMat);
-      ws.position.set(0, 1.8, -3.42);
-      const wr = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.65, 5.2), windowMat);
-      wr.position.set(0, 1.85, 0.4);
-      group.add(busBody, stripe, ws, wr);
-
-      // Wheels
-      const wGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.35, 12);
-      const wMat = createMat(0x111111);
-      const makeWheel = (x, z) => {
-        const w = new THREE.Mesh(wGeo, wMat); w.rotation.z = Math.PI / 2; w.position.set(x, 0.48, z); return w;
-      };
-      group.add(makeWheel(-1.1, -2.1), makeWheel(1.1, -2.1), makeWheel(-1.1, 2.1), makeWheel(1.1, 2.1));
-
+      const colors = [{b: 0xc0392b, s: 0xf1c40f, n: 'রাইদা পরিবহন'}, {b: 0x2980b9, s: 0xffffff, n: 'অনাবিল স্পেশাল'}];
+      const t = colors[type % colors.length];
+      const bldg = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.2, 6.8), createMat(t.b)); bldg.position.set(0, 1.5, 0);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.35, 6.75), createMat(t.s)); stripe.position.set(0, 1.3, 0);
+      group.add(bldg, stripe);
       group.userData = { type: 'bus', length: 7.0, width: 2.4, name: t.n };
       return group;
     }
 
     function createRickshaw() {
       const group = new THREE.Group();
-      const woodMat = createMat(0xb53471);
-      const hoodMat = createMat(0x009432);
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 0.7), woodMat);
-      seat.position.set(0, 0.85, 0.5);
-      const hood = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.85, 0.75), hoodMat);
-      hood.position.set(0, 1.35, 0.55);
-      group.add(seat, hood);
-
-      // Wheels
-      const wGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.08, 12);
-      const wMat = createMat(0x2f3640);
-      const fw = new THREE.Mesh(wGeo, wMat); fw.rotation.z = Math.PI / 2; fw.position.set(0, 0.42, -1.0);
-      const rwL = new THREE.Mesh(wGeo, wMat); rwL.rotation.z = Math.PI / 2; rwL.position.set(-0.65, 0.42, 0.6);
-      const rwR = rwL.clone(); rwR.position.x = 0.65;
-      group.add(fw, rwL, rwR);
-
-      // Puller with lungi
-      const puller = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.3), createMat(0x0652dd));
-      puller.position.set(0, 1.0, -0.2);
-      const pHead = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), createMat(0xd29054));
-      pHead.position.set(0, 1.5, -0.25);
-      group.add(puller, pHead);
-
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 0.7), createMat(0xb53471)); seat.position.set(0, 0.85, 0.5);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.85, 0.75), createMat(0x009432)); hood.position.set(0, 1.35, 0.55);
+      const puller = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.3), createMat(0x0652dd)); puller.position.set(0, 1.0, -0.2);
+      group.add(seat, hood, puller);
       group.userData = { type: 'rickshaw', length: 2.2, width: 1.4 };
       return group;
     }
@@ -364,7 +312,6 @@
       return group;
     }
 
-    // --- 3. Stages Definition ---
     const STAGES = [
       { id: 1, name: 'যাত্রাবাড়ী', subtitle: 'Jatrabari Bus Terminal', startM: 0, endM: 2500 },
       { id: 2, name: 'প্রগতি সরণি', subtitle: 'Progoti Saroni (Badda/JFP)', startM: 2500, endM: 5500 },
@@ -373,7 +320,7 @@
       { id: 5, name: 'উত্তরা হাউস বিল্ডিং', subtitle: 'Uttara House Building (Finish)', startM: 10500, endM: 12000 }
     ];
 
-    // --- 4. Main React App ---
+    // --- 3. React App Component ---
     function App() {
       const [gameState, setGameState] = useState('START');
       const [score, setScore] = useState(0);
@@ -430,51 +377,56 @@
         g.traffic.forEach(item => {
           if (item.mesh.userData.type === 'rickshaw') {
             const dist = Math.abs(item.mesh.position.z - g.playerPos.z);
-            if (dist < 28 && item.mesh.position.z < g.playerPos.z) {
-              item.targetX = -4.8;
+            if (dist < 32 && item.mesh.position.z < g.playerPos.z) {
+              item.targetX = -5.0;
             }
           }
         });
       };
 
-      // Three.js Setup
+      // Three.js Scene Setup
       useEffect(() => {
         const cont = canvasContainerRef.current;
         if (!cont) return;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+        scene.background = new THREE.Color(0x74b9ff);
+        scene.fog = new THREE.FogExp2(0x74b9ff, 0.009);
 
-        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
-        camera.position.set(0, 4.2, 7.5);
+        const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 350);
+        camera.position.set(0, 4.4, 7.8);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         cont.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const dirLight = new THREE.DirectionalLight(0xfffaed, 0.9);
-        dirLight.position.set(20, 40, 20);
-        scene.add(dirLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+        const sun = new THREE.DirectionalLight(0xfffaed, 0.95);
+        sun.position.set(30, 50, 20);
+        scene.add(sun);
 
         const player = createPlayerBike();
         scene.add(player);
 
-        // Roads
+        // Road & Buildings
         const roadChunks = [];
-        const CHUNK_LEN = 50;
-        const roadGeo = new THREE.PlaneGeometry(12, CHUNK_LEN);
-        const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const CHUNK_LEN = 60;
+        const roadGeo = new THREE.PlaneGeometry(13, CHUNK_LEN);
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x2d3436 });
         const walkMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6 });
 
         for (let i = 0; i < 8; i++) {
           const chunk = new THREE.Group();
           const road = new THREE.Mesh(roadGeo, roadMat); road.rotation.x = -Math.PI / 2;
-          const leftW = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, CHUNK_LEN), walkMat); leftW.position.set(-7.25, 0.2, 0);
-          const rightW = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, CHUNK_LEN), walkMat); rightW.position.set(7.25, 0.2, 0);
-          chunk.add(road, leftW, rightW);
+          const leftW = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.45, CHUNK_LEN), walkMat); leftW.position.set(-8.25, 0.22, 0);
+          const rightW = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.45, CHUNK_LEN), walkMat); rightW.position.set(8.25, 0.22, 0);
+
+          // Buildings
+          const bLeft = createDhakaBuilding(i % 5); bLeft.position.set(-16, 0, -CHUNK_LEN / 4); bLeft.rotation.y = Math.PI / 2;
+          const bRight = createDhakaBuilding((i + 2) % 5); bRight.position.set(16, 0, CHUNK_LEN / 4); bRight.rotation.y = -Math.PI / 2;
+
+          chunk.add(road, leftW, rightW, bLeft, bRight);
           chunk.position.set(0, 0, -i * CHUNK_LEN);
           scene.add(chunk);
           roadChunks.push(chunk);
@@ -493,7 +445,7 @@
         return () => window.removeEventListener('resize', onResize);
       }, []);
 
-      // Loop
+      // Game Loop
       useEffect(() => {
         const g = engineRef.current;
         if (gameState === 'PLAYING') sounds.startEngine();
@@ -504,12 +456,12 @@
           g.lastTime = now;
 
           if (gameState === 'PLAYING') {
-            // Speed
-            let tgt = 45;
-            if (g.keys.up) tgt = 80;
-            if (g.keys.down) tgt = 20;
+            // Speed controls (gentle baseline 28 km/h, up to 68 on gas, brake to 12)
+            let tgt = 28;
+            if (g.keys.up) tgt = 68;
+            if (g.keys.down) tgt = 12;
             if (g.nitroActive) {
-              tgt = 120;
+              tgt = 110;
               g.nitroTime -= dt;
               if (g.nitroTime <= 0) {
                 g.nitroActive = false;
@@ -518,35 +470,38 @@
                 setNitroTime(Math.ceil(g.nitroTime));
               }
             }
-            g.speed += (tgt - g.speed) * dt * 2.5;
-            const fwd = g.speed * 1.6 * dt;
+            const rate = g.keys.down ? 4.5 : (g.keys.up ? 3.0 : 2.0);
+            g.speed += (tgt - g.speed) * dt * rate;
+
+            const fwd = g.speed * 1.4 * dt;
             g.playerPos.z -= fwd;
             g.distanceM += fwd * 5.0;
 
-            sounds.updateEngine(g.speed / 120);
+            sounds.updateEngine(g.speed / 110);
 
-            // Steer
+            // Responsive Snappy Steer
             let steer = 0;
             if (g.keys.left) steer -= 1;
             if (g.keys.right) steer += 1;
-            g.playerVelX += (steer * 8.5 - g.playerVelX) * dt * 8.0;
+            g.playerVelX += (steer * 11.5 - g.playerVelX) * dt * 10.0;
             g.playerPos.x += g.playerVelX * dt;
-            g.playerPos.x = Math.max(-5.2, Math.min(5.2, g.playerPos.x));
+            g.playerPos.x = Math.max(-5.5, Math.min(5.5, g.playerPos.x));
 
             g.player.position.set(g.playerPos.x, g.playerPos.y, g.playerPos.z);
-            g.player.rotation.z = -g.playerVelX * 0.045;
+            g.player.rotation.z = -g.playerVelX * 0.055;
+            g.player.rotation.y = -g.playerVelX * 0.025;
 
             // Camera
-            g.camera.position.x += (g.playerPos.x * 0.55 - g.camera.position.x) * dt * 5.0;
-            g.camera.position.z = g.playerPos.z + 7.2;
+            g.camera.position.x += (g.playerPos.x * 0.65 - g.camera.position.x) * dt * 6.0;
+            g.camera.position.z = g.playerPos.z + 7.6;
             g.camera.lookAt(g.playerPos.x * 0.6, 1.4, g.playerPos.z - 12);
 
-            // Recycle roads
+            // Road recycling
             g.roadChunks.forEach(c => {
-              if (c.position.z > g.playerPos.z + 50) c.position.z -= g.roadChunks.length * 50;
+              if (c.position.z > g.playerPos.z + 60) c.position.z -= g.roadChunks.length * 60;
             });
 
-            // Stage check
+            // Stage Check
             const currentStage = STAGES.find(s => g.distanceM >= s.startM && g.distanceM < s.endM) || STAGES[STAGES.length - 1];
             if (currentStage.id !== g.stageIdx + 1) {
               g.stageIdx = currentStage.id - 1;
@@ -559,19 +514,19 @@
             if (g.traffic.length < 8) {
               const spawnZ = g.playerPos.z - (70 + Math.random() * 60);
               const r = Math.random();
-              const vMesh = r < 0.35 ? createCNG() : (r < 0.75 ? createBus(Math.floor(Math.random()*3)) : createRickshaw());
-              const lanes = [-4.0, -1.8, 1.8, 4.0];
+              const vMesh = r < 0.38 ? createCNG() : (r < 0.76 ? createBus(Math.floor(Math.random()*2)) : createRickshaw());
+              const lanes = [-4.2, -1.8, 1.8, 4.2];
               const lx = lanes[Math.floor(Math.random() * lanes.length)];
               vMesh.position.set(lx, 0, spawnZ);
               g.scene.add(vMesh);
-              g.traffic.push({ mesh: vMesh, speed: 20 + Math.random() * 20, targetX: lx, passed: false });
+              g.traffic.push({ mesh: vMesh, speed: 18 + Math.random() * 18, targetX: lx, passed: false });
             }
 
             for (let i = g.traffic.length - 1; i >= 0; i--) {
               const item = g.traffic[i];
-              item.mesh.position.z -= item.speed * dt * 1.6;
+              item.mesh.position.z -= item.speed * dt * 1.4;
               if (item.targetX !== undefined) {
-                item.mesh.position.x += (item.targetX - item.mesh.position.x) * dt * 3.0;
+                item.mesh.position.x += (item.targetX - item.mesh.position.x) * dt * 3.5;
               }
 
               const dx = Math.abs(item.mesh.position.x - g.playerPos.x);
@@ -580,7 +535,7 @@
               const len = item.mesh.userData.length || 2.5;
 
               // Near miss
-              if (!item.passed && dz < len * 0.8 && dx > width * 0.45 && dx < width * 0.85) {
+              if (!item.passed && dz < len * 0.8 && dx > width * 0.45 && dx < width * 0.95) {
                 item.passed = true;
                 sounds.playNearMiss();
                 g.score += 250;
@@ -589,7 +544,7 @@
               }
 
               // Hit
-              if (dx < (width * 0.42 + 0.3) && dz < (len * 0.45 + 0.5)) {
+              if (dx < (width * 0.42 + 0.28) && dz < (len * 0.45 + 0.45)) {
                 if (g.nitroActive) {
                   item.mesh.position.y += 3;
                   g.score += 500;
@@ -611,7 +566,7 @@
               const spawnZ = g.playerPos.z - (50 + Math.random() * 80);
               const lanes = [-3.8, -1.8, 1.8, 3.8];
               const lx = lanes[Math.floor(Math.random() * lanes.length)];
-              const isChai = Math.random() < 0.22;
+              const isChai = Math.random() < 0.24;
               const cMesh = isChai ? createChaiCup() : createCoin();
               cMesh.position.set(lx, 0.9, spawnZ);
               g.scene.add(cMesh);
@@ -671,7 +626,6 @@
         g.playerPos = { x: 0, y: 0, z: 0 };
         g.speed = 0; g.distanceM = 0; g.score = 0; g.coins = 0;
         g.stageIdx = 0; g.nitroActive = false;
-        // Clear traffic
         g.traffic.forEach(t => g.scene.remove(t.mesh));
         g.traffic = [];
         g.collectibles.forEach(c => g.scene.remove(c.mesh));
@@ -681,7 +635,12 @@
         setGameState('PLAYING');
       };
 
-      const progressPercent = Math.min(100, Math.max(0, (distanceM / 12000) * 100));
+      const progressRatio = Math.min(1, Math.max(0, distanceM / 12000));
+      const progressPercent = Math.round(progressRatio * 100);
+      const nextStage = STAGES.find(s => distanceM < s.startM) || null;
+      const distToNext = nextStage ? (nextStage.startM - distanceM) : 0;
+      const mapY = 145 - progressRatio * 125;
+      const mapX = 65 + Math.sin(progressRatio * Math.PI * 1.5) * 22;
 
       return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -690,72 +649,80 @@
           {/* HUD Overlay */}
           {gameState === 'PLAYING' && (
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-              {/* GPS Corridor Tracker */}
-              <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '680px', background: 'rgba(18, 24, 38, 0.9)', borderRadius: '12px', padding: '10px 16px', color: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-                  <span style={{ color: '#f1c40f', fontWeight: 'bold' }}>📍 ঢাকা জিপিএস রুট (১২ কিমি)</span>
-                  <span>{distanceM} মি / ১২,০০০ মি</span>
+              {/* GPS MINI-MAP HUD */}
+              <div style={{ position: 'absolute', top: '14px', right: '16px', width: '165px', background: 'rgba(15, 23, 42, 0.92)', borderRadius: '14px', padding: '10px', border: '1.5px solid rgba(0, 240, 255, 0.4)', pointerEvents: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
+                  <span style={{ color: '#00f0ff', fontWeight: 'bold' }}>📡 ঢাকা জিপিএস ম্যাপ</span>
+                  <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>{progressPercent}%</span>
                 </div>
-                <div style={{ position: 'relative', height: '8px', background: '#34495e', borderRadius: '4px' }}>
-                  <div style={{ width: `${progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #e67e22, #f1c40f, #2ecc71)', borderRadius: '4px' }} />
-                  <div style={{ position: 'absolute', top: '-8px', left: `calc(${progressPercent}% - 10px)`, fontSize: '16px' }}>🏍️</div>
+                <div style={{ width: '100%', height: '150px', background: 'rgba(0,0,0,0.45)', borderRadius: '8px', position: 'relative' }}>
+                  <svg width="100%" height="150" viewBox="0 0 130 155">
+                    <path d="M 65 145 C 50 120, 85 95, 65 70 C 45 45, 75 30, 65 15" fill="none" stroke="#34495e" strokeWidth="8" strokeLinecap="round" />
+                    <path d="M 65 145 C 50 120, 85 95, 65 70 C 45 45, 75 30, 65 15" fill="none" stroke="#00d2d3" strokeWidth="4" strokeDasharray="160" strokeDashoffset={160 - progressRatio * 160} strokeLinecap="round" />
+                    <circle cx="65" cy="145" r="3.5" fill="#e67e22" /><text x="73" y="148" fill="#fff" fontSize="8">যাত্রাবাড়ী</text>
+                    <circle cx="76" cy="108" r="3.5" fill="#9b59b6" /><text x="83" y="111" fill="#fff" fontSize="8">প্রগতি সরণি</text>
+                    <circle cx="65" cy="70" r="4.0" fill="#3498db" /><text x="73" y="73" fill="#f1c40f" fontSize="8">কুড়িল</text>
+                    <circle cx="54" cy="38" r="3.5" fill="#1abc9c" /><text x="5" y="41" fill="#fff" fontSize="8">এয়ারপোর্ট</text>
+                    <circle cx="65" cy="15" r="4.5" fill="#2ecc71" /><text x="73" y="18" fill="#2ecc71" fontSize="8">উত্তরা 🏁</text>
+                    <circle cx={mapX} cy={mapY} r="6" fill="rgba(0,240,255,0.3)" />
+                    <circle cx={mapX} cy={mapY} r="3.5" fill="#00f0ff" stroke="#fff" strokeWidth="1.5" />
+                  </svg>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '11px', color: '#bdc3c7' }}>
-                  {STAGES.map(s => (
-                    <span key={s.id} style={{ color: distanceM >= s.startM ? '#2ecc71' : '#7f8c8d' }}>{s.name}</span>
-                  ))}
+                <div style={{ marginTop: '6px', fontSize: '11px', color: '#cbd5e1', textAlign: 'center' }}>
+                  {nextStage ? `পরবর্তী: ${nextStage.name} (${distToNext}মি)` : 'উত্তরা ফিনিশ লাইন সামনে!'}
                 </div>
               </div>
 
               {/* Status Badges */}
-              <div style={{ position: 'absolute', top: '88px', left: '16px', right: '16px', display: 'flex', gap: '10px', pointerEvents: 'auto' }}>
-                <div style={{ background: 'rgba(18,24,38,0.85)', padding: '6px 14px', borderRadius: '10px', border: '1px solid #3498db', color: '#fff' }}>
+              <div style={{ position: 'absolute', top: '14px', left: '16px', display: 'flex', gap: '10px', pointerEvents: 'auto' }}>
+                <div style={{ background: 'rgba(15,23,42,0.88)', padding: '6px 14px', borderRadius: '12px', border: '1px solid #00d2d3', color: '#fff' }}>
                   <div style={{ fontSize: '10px', color: '#bdc3c7' }}>গতি</div>
                   <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{speed} <span style={{ fontSize: '12px' }}>KM/H</span></div>
                 </div>
-                <div style={{ background: 'rgba(18,24,38,0.85)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', color: '#f1c40f' }}>
+                <div style={{ background: 'rgba(15,23,42,0.88)', padding: '6px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', color: '#f1c40f' }}>
                   <div style={{ fontSize: '10px', color: '#bdc3c7' }}>স্কোর</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{score.toLocaleString()}</div>
                 </div>
-                <div style={{ background: 'rgba(18,24,38,0.85)', padding: '6px 14px', borderRadius: '10px', border: '1px solid #f39c12', color: '#2ecc71' }}>
+                <div style={{ background: 'rgba(15,23,42,0.88)', padding: '6px 14px', borderRadius: '12px', border: '1px solid #f39c12', color: '#2ecc71' }}>
                   <div style={{ fontSize: '10px', color: '#bdc3c7' }}>টাকা</div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>৳ {coins}</div>
                 </div>
-                <button onClick={() => setIsMuted(sounds.toggleMute())} style={{ marginLeft: 'auto', background: 'rgba(18,24,38,0.85)', border: '1px solid #fff', borderRadius: '10px', color: '#fff', fontSize: '18px', padding: '8px 12px', cursor: 'pointer' }}>
+                <button onClick={() => setIsMuted(sounds.toggleMute())} style={{ background: 'rgba(15,23,42,0.88)', border: '1px solid #fff', borderRadius: '12px', color: '#fff', fontSize: '18px', padding: '8px 12px', cursor: 'pointer' }}>
                   {isMuted ? '🔇' : '🔊'}
                 </button>
               </div>
 
               {/* Nitro Banner */}
               {nitroActive && (
-                <div style={{ position: 'absolute', top: '155px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg, #e67e22, #d35400)', color: '#fff', padding: '8px 24px', borderRadius: '30px', fontWeight: 'bold', fontSize: '15px' }}>
-                  🔥 টংয়ের লাল চা বুস্ট! স্পিড ১২০ কিমি/ঘণ্টা ({nitroTime}s)
+                <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(90deg, #e67e22, #d35400)', color: '#fff', padding: '8px 24px', borderRadius: '30px', fontWeight: 'bold', fontSize: '15px' }}>
+                  🔥 টংয়ের লাল চা বুস্ট! স্পিড ১১০ কিমি/ঘণ্টা ({nitroTime}s)
                 </div>
               )}
 
               {/* Popups */}
               {nearMissPopup && (
-                <div style={{ position: 'absolute', top: '210px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(231,76,60,0.95)', color: '#fff', padding: '8px 22px', borderRadius: '20px', fontWeight: 'bold' }}>
+                <div style={{ position: 'absolute', top: '130px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(231,76,60,0.95)', color: '#fff', padding: '8px 22px', borderRadius: '20px', fontWeight: 'bold' }}>
                   {nearMissPopup}
                 </div>
               )}
               {stagePopup && (
-                <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(18,24,38,0.95)', border: '2px solid #f1c40f', borderRadius: '16px', padding: '20px 36px', textAlign: 'center', color: '#fff' }}>
-                  <div style={{ fontSize: '13px', color: '#f1c40f' }}>📍 নতুন মাইলস্টোন</div>
+                <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(15,23,42,0.94)', border: '2px solid #00f0ff', borderRadius: '16px', padding: '20px 36px', textAlign: 'center', color: '#fff' }}>
+                  <div style={{ fontSize: '13px', color: '#00f0ff' }}>📍 নতুন মাইলস্টোন</div>
                   <div style={{ fontSize: '26px', fontWeight: 'bold' }}>{stagePopup.name}</div>
                   <div style={{ fontSize: '13px', color: '#bdc3c7' }}>{stagePopup.subtitle}</div>
                 </div>
               )}
 
               {/* Mobile Buttons */}
-              <div style={{ position: 'absolute', bottom: '24px', left: '16px', right: '16px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'auto' }}>
+              <div style={{ position: 'absolute', bottom: '22px', left: '16px', right: '16px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'auto' }}>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onTouchStart={() => engineRef.current.keys.left = true} onTouchEnd={() => engineRef.current.keys.left = false} onMouseDown={() => engineRef.current.keys.left = true} onMouseUp={() => engineRef.current.keys.left = false} style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#1a202c', color: '#fff', fontSize: '22px', border: '2px solid #fff' }}>◀</button>
-                  <button onTouchStart={() => engineRef.current.keys.right = true} onTouchEnd={() => engineRef.current.keys.right = false} onMouseDown={() => engineRef.current.keys.right = true} onMouseUp={() => engineRef.current.keys.right = false} style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#1a202c', color: '#fff', fontSize: '22px', border: '2px solid #fff' }}>▶</button>
+                  <button onTouchStart={() => engineRef.current.keys.left = true} onTouchEnd={() => engineRef.current.keys.left = false} onMouseDown={() => engineRef.current.keys.left = true} onMouseUp={() => engineRef.current.keys.left = false} style={{ width: '68px', height: '62px', borderRadius: '14px', background: '#1a202c', color: '#fff', fontSize: '15px', fontWeight: 'bold', border: '2px solid #fff' }}>◀ বামে</button>
+                  <button onTouchStart={() => engineRef.current.keys.right = true} onTouchEnd={() => engineRef.current.keys.right = false} onMouseDown={() => engineRef.current.keys.right = true} onMouseUp={() => engineRef.current.keys.right = false} style={{ width: '68px', height: '62px', borderRadius: '14px', background: '#1a202c', color: '#fff', fontSize: '15px', fontWeight: 'bold', border: '2px solid #fff' }}>ডানে ▶</button>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={triggerHorn} style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#e67e22', color: '#fff', fontSize: '13px', fontWeight: 'bold', border: '2px solid #fff' }}>📢 হর্ন</button>
-                  <button onTouchStart={() => engineRef.current.keys.up = true} onTouchEnd={() => engineRef.current.keys.up = false} onMouseDown={() => engineRef.current.keys.up = true} onMouseUp={() => engineRef.current.keys.up = false} style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#27ae60', color: '#fff', fontSize: '13px', fontWeight: 'bold', border: '2px solid #fff' }}>🚀 স্পিড</button>
+                  <button onClick={triggerHorn} style={{ width: '64px', height: '62px', borderRadius: '14px', background: '#e67e22', color: '#fff', fontSize: '13px', fontWeight: 'bold', border: '2px solid #fff' }}>📢 হর্ন</button>
+                  <button onTouchStart={() => engineRef.current.keys.down = true} onTouchEnd={() => engineRef.current.keys.down = false} onMouseDown={() => engineRef.current.keys.down = true} onMouseUp={() => engineRef.current.keys.down = false} style={{ width: '64px', height: '62px', borderRadius: '14px', background: '#c0392b', color: '#fff', fontSize: '13px', fontWeight: 'bold', border: '2px solid #fff' }}>🛑 ব্রেক</button>
+                  <button onTouchStart={() => engineRef.current.keys.up = true} onTouchEnd={() => engineRef.current.keys.up = false} onMouseDown={() => engineRef.current.keys.up = true} onMouseUp={() => engineRef.current.keys.up = false} style={{ width: '64px', height: '62px', borderRadius: '14px', background: '#27ae60', color: '#fff', fontSize: '13px', fontWeight: 'bold', border: '2px solid #fff' }}>🚀 গতি</button>
                 </div>
               </div>
             </div>
@@ -764,20 +731,20 @@
           {/* START MODAL */}
           {gameState === 'START' && (
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ background: '#1a202c', border: '2px solid #3498db', borderRadius: '18px', padding: '30px', maxWidth: '500px', width: '90%', textAlign: 'center', color: '#fff' }}>
-                <div style={{ fontSize: '48px', marginBottom: '8px' }}>🏍️💨</div>
+              <div style={{ background: '#1a202c', border: '2px solid #00f0ff', borderRadius: '18px', padding: '30px', maxWidth: '500px', width: '90%', textAlign: 'center', color: '#fff' }}>
+                <div style={{ fontSize: '46px', marginBottom: '4px' }}>🏍️💨</div>
                 <h1 style={{ margin: '0 0 6px 0', fontSize: '28px' }}>ঢাকা বাইক রাশ ৩ডি</h1>
-                <h3 style={{ margin: '0 0 16px 0', color: '#f1c40f', fontSize: '15px' }}>যাত্রাবাড়ী ➔ প্রগতি সরণি ➔ কুড়িল ফ্লাইওভার ➔ উত্তরা হাউস বিল্ডিং</h3>
+                <h3 style={{ margin: '0 0 16px 0', color: '#f1c40f', fontSize: '15px' }}>যাত্রাবাড়ী ➔ প্রগতি সরণি ➔ কুড়িল ফ্লাইওভার ➔ উত্তরা (১২ কিমি)</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', textAlign: 'left', background: 'rgba(255,255,255,0.06)', padding: '12px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px' }}>
-                  <div>🛺 সিএনজি: হঠাৎ লেন চেঞ্জ করবে</div>
-                  <div>🚌 বাস: এড়িয়ে সাবধানে চালান</div>
-                  <div>🚲 রিকশা: হর্ন দিলে সাইড দেবে</div>
-                  <div>☕ টংয়ের চা: নাইট্রো স্পিড বুস্ট!</div>
+                  <div>🏍️ স্পোর্টস বাইক: স্মুথ টার্নিং</div>
+                  <div>📡 জিপিএস ম্যাপ: রুট ট্র্যাকার</div>
+                  <div>🏢 ঢাকা সিটি: দোকান ও বিলবোর্ড</div>
+                  <div>📢 হর্ন দিলে: রিকশা সাইড দেবে</div>
                 </div>
                 <p style={{ fontSize: '13px', color: '#bdc3c7', marginBottom: '20px' }}>
-                  কন্ট্রোল: ⬅️ / ➡️ বা A / D | হর্ন: Space / H | এক্সিলারেটর: ⬆️ / W
+                  কন্ট্রোল: ⬅️ / ➡️ ডানে-বামে | ⬆️ গতি বাড়ানো | ⬇️ ব্রেক | Space / H হর্ন
                 </p>
-                <button onClick={startGame} style={{ background: 'linear-gradient(135deg, #3498db, #2980b9)', border: 'none', color: '#fff', fontSize: '18px', fontWeight: 'bold', padding: '14px 40px', borderRadius: '30px', cursor: 'pointer' }}>
+                <button onClick={startGame} style={{ background: 'linear-gradient(135deg, #0984e3, #00cec9)', border: 'none', color: '#fff', fontSize: '18px', fontWeight: 'bold', padding: '14px 40px', borderRadius: '30px', cursor: 'pointer' }}>
                   রাইড শুরু করুন 🚀
                 </button>
               </div>
@@ -811,10 +778,6 @@
                 <h1 style={{ color: '#2ecc71', margin: '0 0 6px 0' }}>অভিনন্দন!</h1>
                 <h3 style={{ color: '#f1c40f', margin: '0 0 12px 0' }}>আপনি নিরাপদে উত্তরা হাউস বিল্ডিং পৌঁছেছেন!</h3>
                 <p style={{ fontSize: '14px', color: '#bdc3c7' }}>যাত্রাবাড়ী থেকে পুরো ১২ কিমি পথ সফলভাবে অতিক্রম করেছেন!</p>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px', margin: '16px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>ফাইনাল স্কোর:</span><strong style={{ color: '#f1c40f' }}>{score.toLocaleString()}</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>মোট টাকা:</span><strong style={{ color: '#2ecc71' }}>৳ {coins}</strong></div>
-                </div>
                 <button onClick={startGame} style={{ background: '#27ae60', border: 'none', color: '#fff', fontSize: '16px', fontWeight: 'bold', padding: '14px 36px', borderRadius: '30px', cursor: 'pointer' }}>
                   আবার ড্রাইভ করুন 🚀
                 </button>

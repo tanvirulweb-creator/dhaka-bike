@@ -7,9 +7,11 @@ import {
   createRickshaw,
   createCoin,
   createChaiCup,
-  createPothole,
+  createDhakaBuilding,
+  createDhakaShop,
+  createDhakaBillboard,
+  createDhakaTree,
   createMetroPillar,
-  createFlyoverRailing,
   createAirplane
 } from '../utils/models';
 import { sounds } from '../utils/audio';
@@ -23,7 +25,7 @@ export const STAGES = [
 ];
 
 export default function GameCanvas({
-  gameState, // 'START', 'PLAYING', 'GAMEOVER', 'VICTORY'
+  gameState,
   onScoreUpdate,
   onStageChange,
   onGameOver,
@@ -34,7 +36,6 @@ export default function GameCanvas({
 }) {
   const containerRef = useRef(null);
 
-  // Internal game engine references
   const gameRef = useRef({
     scene: null,
     camera: null,
@@ -43,25 +44,23 @@ export default function GameCanvas({
     playerPos: { x: 0, y: 0, z: 0 },
     playerVelX: 0,
     speed: 0,
-    maxSpeed: 55, // normal max km/h
     nitroActive: false,
     nitroTimeLeft: 0,
     distanceMeters: 0,
     currentStageIndex: 0,
     score: 0,
     coinsCollected: 0,
-    keys: { left: false, right: false, up: false, down: false, horn: false, nitro: false },
+    keys: { left: false, right: false, up: false, down: false, horn: false },
     traffic: [],
     collectibles: [],
     roadChunks: [],
-    decorations: [],
+    cityObjects: [],
     airplane: null,
-    finishArch: null,
     lastTime: 0,
     animFrameId: null
   });
 
-  // Keyboard Event Handlers
+  // Keyboard Controls
   useEffect(() => {
     const handleKeyDown = (e) => {
       const g = gameRef.current;
@@ -92,7 +91,7 @@ export default function GameCanvas({
     };
   }, []);
 
-  // Update mobile inputs into game keys
+  // Mobile Touch Inputs Sync
   useEffect(() => {
     if (mobileInputs) {
       const g = gameRef.current;
@@ -107,29 +106,27 @@ export default function GameCanvas({
     }
   }, [mobileInputs]);
 
-  // Horn action
+  // Horn Action
   const triggerHorn = () => {
     sounds.playHorn();
     if (onHornHonk) onHornHonk();
 
-    // Make nearby rickshaws move to the side!
     const g = gameRef.current;
     g.traffic.forEach(item => {
       if (item.mesh.userData.type === 'rickshaw') {
         const dist = Math.abs(item.mesh.position.z - g.playerPos.z);
-        if (dist < 28 && item.mesh.position.z < g.playerPos.z) {
-          // Move to the left shoulder!
-          item.targetX = -4.8;
-          item.mesh.rotation.y = -0.15;
+        if (dist < 32 && item.mesh.position.z < g.playerPos.z) {
+          item.targetX = -5.0; // Rickshaw dodges to shoulder
+          item.mesh.rotation.y = -0.2;
           setTimeout(() => {
             if (item.mesh) item.mesh.rotation.y = 0;
-          }, 800);
+          }, 900);
         }
       }
     });
   };
 
-  // Initialize Three.js Scene
+  // Three.js Scene Setup
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -137,90 +134,113 @@ export default function GameCanvas({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // 1. Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb); // Dhaka daylight sky
-    scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+    scene.background = new THREE.Color(0x74b9ff); // Bright Dhaka morning sky
+    scene.fog = new THREE.FogExp2(0x74b9ff, 0.009);
 
-    // 2. Camera
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 300);
-    camera.position.set(0, 4.2, 7.5);
+    const camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 350);
+    camera.position.set(0, 4.4, 7.8);
 
-    // 3. Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    // 4. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 0.95);
+    sunLight.position.set(30, 50, 20);
+    sunLight.castShadow = true;
+    scene.add(sunLight);
 
-    const dirLight = new THREE.DirectionalLight(0xfffaed, 0.9);
-    dirLight.position.set(20, 40, 20);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    scene.add(dirLight);
-
-    // 5. Player Bike
+    // Player Bike
     const player = createPlayerBike();
     player.position.set(0, 0, 0);
     scene.add(player);
 
-    // 6. Build Initial Road Chunks
+    // Road & Dhaka City Chunks
     const roadChunks = [];
-    const CHUNK_LENGTH = 50;
-    const TOTAL_CHUNKS = 8;
+    const cityObjects = [];
+    const CHUNK_LEN = 60;
+    const NUM_CHUNKS = 8;
 
-    const roadGeo = new THREE.PlaneGeometry(12, CHUNK_LENGTH);
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-
-    const sidewalkGeo = new THREE.BoxGeometry(2.5, 0.4, CHUNK_LENGTH);
+    const roadGeo = new THREE.PlaneGeometry(13, CHUNK_LEN);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.8 });
+    const sidewalkGeo = new THREE.BoxGeometry(3.5, 0.45, CHUNK_LEN);
     const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x95a5a6, roughness: 0.9 });
 
-    for (let i = 0; i < TOTAL_CHUNKS; i++) {
+    for (let i = 0; i < NUM_CHUNKS; i++) {
       const chunkGroup = new THREE.Group();
-      const zPos = -i * CHUNK_LENGTH;
+      const zPos = -i * CHUNK_LEN;
 
       // Asphalt Road
       const road = new THREE.Mesh(roadGeo, roadMat);
       road.rotation.x = -Math.PI / 2;
-      road.position.set(0, 0, 0);
       road.receiveShadow = true;
 
-      // Dashed Lane Markings
-      for (let lane = -1; lane <= 1; lane++) {
-        const laneX = lane * 2.8;
-        for (let stripe = 0; stripe < 8; stripe++) {
+      // Dashed Lane Stripes (4 Lanes)
+      for (let lane = -1.5; lane <= 1.5; lane += 1) {
+        if (lane === 0) continue;
+        const lx = lane * 2.8;
+        for (let s = 0; s < 10; s++) {
           const dash = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.18, 2.5),
+            new THREE.PlaneGeometry(0.2, 2.8),
             new THREE.MeshBasicMaterial({ color: 0xffffff })
           );
           dash.rotation.x = -Math.PI / 2;
-          dash.position.set(laneX, 0.02, -CHUNK_LENGTH / 2 + stripe * 6 + 3);
+          dash.position.set(lx, 0.02, -CHUNK_LEN / 2 + s * 6 + 3);
           chunkGroup.add(dash);
         }
       }
 
+      // Yellow Center Line
+      for (let s = 0; s < 10; s++) {
+        const yDash = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.24, 3.2),
+          new THREE.MeshBasicMaterial({ color: 0xf1c40f })
+        );
+        yDash.rotation.x = -Math.PI / 2;
+        yDash.position.set(0, 0.02, -CHUNK_LEN / 2 + s * 6 + 3);
+        chunkGroup.add(yDash);
+      }
+
       // Sidewalks
       const leftWalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-      leftWalk.position.set(-7.25, 0.2, 0);
+      leftWalk.position.set(-8.25, 0.22, 0);
       const rightWalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-      rightWalk.position.set(7.25, 0.2, 0);
+      rightWalk.position.set(8.25, 0.22, 0);
       chunkGroup.add(road, leftWalk, rightWalk);
 
-      // Roadside roadside trees / lamps
-      for (let s = -CHUNK_LENGTH / 2; s < CHUNK_LENGTH / 2; s += 16) {
-        // Lamp post
-        const lamp = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.08, 0.1, 4.5, 6),
-          new THREE.MeshStandardMaterial({ color: 0x7f8c8d })
-        );
-        lamp.position.set(-6.8, 2.25, s);
-        chunkGroup.add(lamp);
+      // --- DHAKA CITY BUILDINGS & SHOPS ON SIDES ---
+      // Left side buildings
+      const leftBldg = createDhakaBuilding(i % 5);
+      leftBldg.position.set(-16, 0, -CHUNK_LEN / 4);
+      leftBldg.rotation.y = Math.PI / 2;
+      chunkGroup.add(leftBldg);
+
+      // Right side buildings
+      const rightBldg = createDhakaBuilding((i + 2) % 5);
+      rightBldg.position.set(16, 0, CHUNK_LEN / 4);
+      rightBldg.rotation.y = -Math.PI / 2;
+      chunkGroup.add(rightBldg);
+
+      // Street level shops
+      const shopLeft = createDhakaShop(i % 4);
+      shopLeft.position.set(-9.5, 0, CHUNK_LEN / 4);
+      shopLeft.rotation.y = Math.PI / 2;
+      chunkGroup.add(shopLeft);
+
+      // Roadside Trees
+      const treeRight = createDhakaTree();
+      treeRight.position.set(9.0, 0, -CHUNK_LEN / 4);
+      chunkGroup.add(treeRight);
+
+      // Commercial Billboards (every other chunk)
+      if (i % 2 === 0) {
+        const billboard = createDhakaBillboard(i / 2);
+        billboard.position.set(12.5, 0, 0);
+        billboard.rotation.y = -Math.PI / 2;
+        chunkGroup.add(billboard);
       }
 
       chunkGroup.position.set(0, 0, zPos);
@@ -228,50 +248,45 @@ export default function GameCanvas({
       roadChunks.push(chunkGroup);
     }
 
-    // 7. Finish Line Archway at Uttara (at z = -12000 scaled down for game feel)
-    // In game units, 12,000 meters = 2,400 game Z units (5 meters per unit)
+    // Finish Arch at Uttara (at z = -2400 game units = 12,000 meters)
     const FINISH_Z = -2400;
     const archGroup = new THREE.Group();
     const pillarMat = new THREE.MeshStandardMaterial({ color: 0x27ae60 });
-    const pLeft = new THREE.Mesh(new THREE.BoxGeometry(1.2, 9, 1.2), pillarMat);
-    pLeft.position.set(-6.5, 4.5, 0);
+    const pLeft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 10, 1.4), pillarMat);
+    pLeft.position.set(-7.5, 5.0, 0);
     const pRight = pLeft.clone();
-    pRight.position.x = 6.5;
+    pRight.position.x = 7.5;
 
-    const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(14, 1.8, 1.4), pillarMat);
-    crossBeam.position.set(0, 8.5, 0);
+    const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(16, 2.0, 1.6), pillarMat);
+    crossBeam.position.set(0, 9.5, 0);
 
-    const bannerCanvas = document.createElement('canvas');
-    bannerCanvas.width = 512;
-    bannerCanvas.height = 128;
-    const bCtx = bannerCanvas.getContext('2d');
+    const bCanvas = document.createElement('canvas');
+    bCanvas.width = 512;
+    bCanvas.height = 128;
+    const bCtx = bCanvas.getContext('2d');
     bCtx.fillStyle = '#27ae60';
     bCtx.fillRect(0, 0, 512, 128);
     bCtx.fillStyle = '#ffffff';
-    bCtx.font = 'bold 42px sans-serif';
+    bCtx.font = 'bold 44px sans-serif';
     bCtx.textAlign = 'center';
     bCtx.fillText('উত্তরা হাউস বিল্ডিং 🏁', 256, 75);
-    const bannerTex = new THREE.CanvasTexture(bannerCanvas);
-    const bannerMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(12, 1.6),
-      new THREE.MeshBasicMaterial({ map: bannerTex })
-    );
-    bannerMesh.position.set(0, 8.5, 0.72);
-    archGroup.add(pLeft, pRight, crossBeam, bannerMesh);
+    const bTex = new THREE.CanvasTexture(bCanvas);
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.8), new THREE.MeshBasicMaterial({ map: bTex }));
+    banner.position.set(0, 9.5, 0.82);
+
+    archGroup.add(pLeft, pRight, crossBeam, banner);
     archGroup.position.set(0, 0, FINISH_Z);
     scene.add(archGroup);
 
-    // Save references to gameRef
     const g = gameRef.current;
     g.scene = scene;
     g.camera = camera;
     g.renderer = renderer;
     g.player = player;
     g.roadChunks = roadChunks;
-    g.finishArch = archGroup;
+    g.cityObjects = cityObjects;
     g.lastTime = performance.now();
 
-    // Handle Window Resize
     const handleResize = () => {
       if (!container || !g.renderer || !g.camera) return;
       const w = container.clientWidth;
@@ -292,10 +307,9 @@ export default function GameCanvas({
     };
   }, []);
 
-  // Main Game Loop
+  // Main Animation Loop
   useEffect(() => {
     const g = gameRef.current;
-
     if (gameState === 'PLAYING') {
       sounds.startEngine();
     } else {
@@ -323,65 +337,84 @@ export default function GameCanvas({
     };
   }, [gameState]);
 
-  // Update Game Physics & Logic
+  // Update Game Logic & Physics
   const updateGame = (dt) => {
     const g = gameRef.current;
     const player = g.player;
     if (!player) return;
 
-    // 1. Acceleration & Speed
-    let targetSpeed = 45; // default cruise speed
-    if (g.keys.up) targetSpeed = 80;
-    if (g.keys.down) targetSpeed = 20;
+    // --- 1. BALANCED, RESPONSIVE SPEED CONTROLS ---
+    // Comfortable baseline cruise speed = 28 km/h (easy to steer and react)
+    let targetSpeed = 28;
 
-    // Nitro boost override
+    if (g.keys.up) {
+      // Accelerating
+      targetSpeed = 68; // Sport speed
+    } else if (g.keys.down) {
+      // Active Braking
+      targetSpeed = 12; // Controlled crawl
+      if (player.userData && player.userData.tailLight) {
+        player.userData.tailLight.material.color.setHex(0xff3838);
+      }
+    } else {
+      if (player.userData && player.userData.tailLight) {
+        player.userData.tailLight.material.color.setHex(0xaa0022);
+      }
+    }
+
+    // Nitro Boost override
     if (g.nitroActive) {
-      targetSpeed = 120;
+      targetSpeed = 110;
       g.nitroTimeLeft -= dt;
       if (g.nitroTimeLeft <= 0) {
         g.nitroActive = false;
       }
     }
 
-    g.speed += (targetSpeed - g.speed) * dt * 2.5;
-    const forwardMovement = (g.speed * 1.6) * dt; // speed to game units
+    // Smooth physics acceleration/deceleration
+    const accelRate = g.keys.down ? 4.5 : (g.keys.up ? 3.0 : 2.0);
+    g.speed += (targetSpeed - g.speed) * dt * accelRate;
+
+    // Forward displacement
+    const forwardMovement = (g.speed * 1.4) * dt;
     g.playerPos.z -= forwardMovement;
-    g.distanceMeters += forwardMovement * 5.0; // 5 meters per unit
+    g.distanceMeters += forwardMovement * 5.0;
 
-    // Sound engine modulation
-    sounds.updateEngine(g.speed / 120);
+    sounds.updateEngine(g.speed / 110);
 
-    // 2. Steering Left / Right
+    // --- 2. SNAPPY, RESPONSIVE STEERING CONTROLS ---
     let steerInput = 0;
     if (g.keys.left) steerInput -= 1;
     if (g.keys.right) steerInput += 1;
 
-    const steerSpeed = 8.5;
-    g.playerVelX += (steerInput * steerSpeed - g.playerVelX) * dt * 8.0;
+    // Snappy responsiveness: player turns immediately without feeling slippery
+    const steerAgility = 11.5;
+    g.playerVelX += (steerInput * steerAgility - g.playerVelX) * dt * 10.0;
     g.playerPos.x += g.playerVelX * dt;
 
-    // Road boundaries
-    g.playerPos.x = Math.max(-5.2, Math.min(5.2, g.playerPos.x));
+    // Clamp inside 4 road lanes
+    g.playerPos.x = Math.max(-5.5, Math.min(5.5, g.playerPos.x));
 
-    // Update Player Mesh Position & Leaning
+    // Dynamic Leaning & Steering Angle
     player.position.set(g.playerPos.x, g.playerPos.y, g.playerPos.z);
-    player.rotation.z = -g.playerVelX * 0.045; // leaning when turning
+    player.rotation.z = -g.playerVelX * 0.055; // Sport banking angle
+    player.rotation.y = -g.playerVelX * 0.025; // Gentle handlebar turn
 
-    // 3. Camera Follow
-    g.camera.position.x += (g.playerPos.x * 0.55 - g.camera.position.x) * dt * 5.0;
-    g.camera.position.y = 4.2 + (g.speed > 80 ? 0.3 : 0);
-    g.camera.position.z = g.playerPos.z + 7.2;
+    // --- 3. DYNAMIC THIRD-PERSON CAMERA ---
+    g.camera.position.x += (g.playerPos.x * 0.65 - g.camera.position.x) * dt * 6.0;
+    g.camera.position.y = 4.3;
+    g.camera.position.z = g.playerPos.z + 7.6;
     g.camera.lookAt(g.playerPos.x * 0.6, 1.4, g.playerPos.z - 12);
 
-    // 4. Infinite Road Recycling
-    const CHUNK_LENGTH = 50;
+    // --- 4. INFINITE ROAD & CITY RECYCLING ---
+    const CHUNK_LEN = 60;
     g.roadChunks.forEach(chunk => {
-      if (chunk.position.z > g.playerPos.z + CHUNK_LENGTH) {
-        chunk.position.z -= g.roadChunks.length * CHUNK_LENGTH;
+      if (chunk.position.z > g.playerPos.z + CHUNK_LEN) {
+        chunk.position.z -= g.roadChunks.length * CHUNK_LEN;
       }
     });
 
-    // 5. Stage Progress & Environment Shifts
+    // --- 5. STAGE MANAGEMENT ---
     const currentStage = STAGES.find(
       s => g.distanceMeters >= s.startM && g.distanceMeters < s.endM
     ) || STAGES[STAGES.length - 1];
@@ -391,38 +424,36 @@ export default function GameCanvas({
       sounds.playMilestone();
       if (onStageChange) onStageChange(currentStage);
 
-      // Stage 4 (Airport Road): Spawn Airplane in sky
+      // Stage 4: Spawn Biman Bangladesh Airplane
       if (currentStage.id === 4 && !g.airplane) {
         const plane = createAirplane();
         g.scene.add(plane);
         g.airplane = plane;
       }
 
-      // Stage 5 (Uttara): Spawn overhead Metro Rail pillars
+      // Stage 5: Spawn Metro Rail viaduct
       if (currentStage.id === 5) {
         for (let pz = g.playerPos.z - 30; pz > g.playerPos.z - 300; pz -= 45) {
           const pillar = createMetroPillar();
           pillar.position.set(0, 0, pz);
           g.scene.add(pillar);
-          g.decorations.push(pillar);
         }
       }
     }
 
-    // Animate airplane if active
     if (g.airplane) {
-      g.airplane.position.z = g.playerPos.z - 60;
-      g.airplane.position.x -= dt * 14;
-      g.airplane.position.y += dt * 1.5;
+      g.airplane.position.z = g.playerPos.z - 65;
+      g.airplane.position.x -= dt * 12;
+      g.airplane.position.y += dt * 1.2;
     }
 
-    // 6. Traffic Spawning & Moving
+    // --- 6. TRAFFIC & OBSTACLES ---
     manageTraffic(dt);
 
-    // 7. Collectibles (Coins & Tong-er Cha)
+    // --- 7. COLLECTIBLES ---
     manageCollectibles(dt);
 
-    // 8. Score accumulation
+    // --- 8. SCORE ACCUMULATION ---
     g.score += Math.floor(g.speed * dt * 1.5);
     if (onScoreUpdate) {
       onScoreUpdate({
@@ -431,11 +462,12 @@ export default function GameCanvas({
         distanceM: Math.floor(g.distanceMeters),
         coins: g.coinsCollected,
         nitroActive: g.nitroActive,
-        nitroTimeLeft: Math.ceil(g.nitroTimeLeft)
+        nitroTimeLeft: Math.ceil(g.nitroTimeLeft),
+        playerLaneX: g.playerPos.x
       });
     }
 
-    // 9. Victory Condition (Uttara House Building reached!)
+    // --- 9. VICTORY CHECK ---
     if (g.distanceMeters >= 12000) {
       sounds.playVictory();
       if (onVictory) {
@@ -448,38 +480,30 @@ export default function GameCanvas({
     }
   };
 
-  // Manage Road Traffic
+  // Manage Traffic
   const manageTraffic = (dt) => {
     const g = gameRef.current;
 
-    // Spawn new traffic ahead
-    if (g.traffic.length < 9) {
+    if (g.traffic.length < 8) {
       const spawnZ = g.playerPos.z - (70 + Math.random() * 60);
-
-      // Select vehicle type
       const rand = Math.random();
       let vehicleMesh;
-      let vehicleSpeed = 20;
+      let vehicleSpeed = 18;
 
-      if (rand < 0.35) {
+      if (rand < 0.38) {
         vehicleMesh = createCNG();
-        vehicleSpeed = 28 + Math.random() * 15;
-      } else if (rand < 0.70) {
+        vehicleSpeed = 22 + Math.random() * 12;
+      } else if (rand < 0.76) {
         vehicleMesh = createBus(Math.floor(Math.random() * 3));
-        vehicleSpeed = 32 + Math.random() * 20;
-      } else if (rand < 0.90) {
-        vehicleMesh = createRickshaw();
-        vehicleSpeed = 10 + Math.random() * 6; // Rickshaws are slow
+        vehicleSpeed = 25 + Math.random() * 15;
       } else {
-        vehicleMesh = createPothole();
-        vehicleSpeed = 0; // Stationary road hazard
+        vehicleMesh = createRickshaw();
+        vehicleSpeed = 8 + Math.random() * 6; // Rickshaws are slow
       }
 
-      // Pick lane: -4.0, -1.8, 1.8, 4.0
-      const lanes = [-4.0, -1.8, 1.8, 4.0];
-      // Rickshaws prefer the slow outer lanes
+      const lanes = [-4.2, -1.8, 1.8, 4.2];
       const laneX = (vehicleMesh.userData.type === 'rickshaw')
-        ? (Math.random() < 0.7 ? -4.0 : 4.0)
+        ? (Math.random() < 0.75 ? -4.2 : 4.2)
         : lanes[Math.floor(Math.random() * lanes.length)];
 
       vehicleMesh.position.set(laneX, 0, spawnZ);
@@ -493,27 +517,23 @@ export default function GameCanvas({
       });
     }
 
-    // Update traffic positions & check collisions
     for (let i = g.traffic.length - 1; i >= 0; i--) {
       const item = g.traffic[i];
       const mesh = item.mesh;
 
-      // Move forward along road
-      mesh.position.z -= item.speed * dt * 1.6;
+      mesh.position.z -= item.speed * dt * 1.4;
 
-      // Smooth lane shifts for vehicle dodging
       if (item.targetX !== undefined) {
-        mesh.position.x += (item.targetX - mesh.position.x) * dt * 3.0;
+        mesh.position.x += (item.targetX - mesh.position.x) * dt * 3.5;
       }
 
-      // Collision Detection with Player
       const dx = Math.abs(mesh.position.x - g.playerPos.x);
       const dz = Math.abs(mesh.position.z - g.playerPos.z);
       const width = mesh.userData.width || 1.6;
       const length = mesh.userData.length || 2.5;
 
-      // Near Miss Check (Reward close overtaking!)
-      if (!item.passed && dz < length * 0.8 && dx > width * 0.45 && dx < width * 0.85) {
+      // Near Miss Check
+      if (!item.passed && dz < length * 0.8 && dx > width * 0.45 && dx < width * 0.95) {
         item.passed = true;
         sounds.playNearMiss();
         g.score += 250;
@@ -521,14 +541,12 @@ export default function GameCanvas({
       }
 
       // Direct Crash Hit
-      if (dx < (width * 0.42 + 0.3) && dz < (length * 0.45 + 0.5)) {
+      if (dx < (width * 0.42 + 0.28) && dz < (length * 0.45 + 0.45)) {
         if (g.nitroActive) {
-          // In Nitro mode: destroy / knock away obstacle!
           mesh.position.y += 3;
           mesh.rotation.x += 1;
           g.score += 500;
         } else {
-          // Crash!
           sounds.playCrash();
           if (onGameOver) {
             onGameOver({
@@ -542,7 +560,6 @@ export default function GameCanvas({
         }
       }
 
-      // Despawn traffic when behind player
       if (mesh.position.z > g.playerPos.z + 20) {
         g.scene.remove(mesh);
         g.traffic.splice(i, 1);
@@ -550,17 +567,16 @@ export default function GameCanvas({
     }
   };
 
-  // Manage Collectibles (Coins & Chai)
+  // Manage Collectibles
   const manageCollectibles = (dt) => {
     const g = gameRef.current;
 
-    // Spawn collectibles
-    if (g.collectibles.length < 6) {
+    if (g.collectibles.length < 5) {
       const spawnZ = g.playerPos.z - (50 + Math.random() * 80);
       const lanes = [-3.8, -1.8, 1.8, 3.8];
       const laneX = lanes[Math.floor(Math.random() * lanes.length)];
 
-      const isChai = Math.random() < 0.22; // 22% chance of Tong-er Cha
+      const isChai = Math.random() < 0.24;
       const itemMesh = isChai ? createChaiCup() : createCoin();
       itemMesh.position.set(laneX, 0.9, spawnZ);
       g.scene.add(itemMesh);
@@ -571,19 +587,16 @@ export default function GameCanvas({
       });
     }
 
-    // Update & check collection
     for (let i = g.collectibles.length - 1; i >= 0; i--) {
       const item = g.collectibles[i];
       const mesh = item.mesh;
 
-      // Rotate continuously
       mesh.rotation.y += dt * 3.5;
 
       const dx = Math.abs(mesh.position.x - g.playerPos.x);
       const dz = Math.abs(mesh.position.z - g.playerPos.z);
 
       if (dx < 1.1 && dz < 1.3) {
-        // Collected!
         if (item.type === 'coin') {
           sounds.playCoin();
           g.coinsCollected += 1;
@@ -591,7 +604,7 @@ export default function GameCanvas({
         } else if (item.type === 'chai') {
           sounds.playNitro();
           g.nitroActive = true;
-          g.nitroTimeLeft = 6.0; // 6 seconds of Nitro!
+          g.nitroTimeLeft = 6.0;
           g.score += 300;
         }
 
@@ -600,7 +613,6 @@ export default function GameCanvas({
         continue;
       }
 
-      // Despawn behind player
       if (mesh.position.z > g.playerPos.z + 15) {
         g.scene.remove(mesh);
         g.collectibles.splice(i, 1);
